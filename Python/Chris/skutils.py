@@ -281,10 +281,14 @@ def pretty_stats(data, stat=None):
     table = Table()
     correlation = data.corr()
 
+    # Create a diagonal condition to filter the correlation of a column with itself
+    diag_mask = np.zeros(correlation.shape, dtype='bool')
+    np.fill_diagonal(diag_mask, True)
+
     table.add_column('feature', values=list(data.columns))
-    table.add_column('highest value', values=correlation[correlation < 1.0].abs().max(skipna=True).values)
-    table.add_column('correlated with', values=correlation[correlation < 1.0].abs().idxmax(skipna=True).values)
-    table.add_column('mean', values=correlation[correlation < 1.0].abs().mean().values)
+    table.add_column('highest value', values=correlation.mask(cond=diag_mask).abs().max(skipna=True).values)
+    table.add_column('correlated with', values=correlation.mask(cond=diag_mask).abs().idxmax(skipna=True).values)
+    table.add_column('mean', values=correlation.mask(cond=diag_mask).abs().mean().values)
 
     display(HTML('<h1>Correlation</h1>'))
     display(HTML(table.html()))
