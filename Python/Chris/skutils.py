@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pandas as pd
 
+from IPython.core.display import display, HTML
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
@@ -196,6 +197,29 @@ class Table(object):
   def max_length(self, col):
     return max(max(list(map(lambda c: len(str(c)), self.values[col]))), len(col))
 
+  def html(self):
+    output = ""
+
+    output += "<table>"
+
+    output += "<thead>"
+    output += "<tr>"
+    for col in self.values:
+      output +=  '<th>{name:s}</th>'.format(name=col)
+    output += "</tr>"
+    output += "</thead>"
+
+    output += "</body>"
+    for r in range(self.size):
+      output += "<tr>"
+      for col in self.values:
+        output += '<td>{name:s}</td>'.format(name=str(self.values[col][r]))
+      output += "</tr>"
+    output += "</tbody>"
+
+    output += "</table>"
+    return output
+
   def __str__(self):
     col_sep = " |"
     output = ""
@@ -236,8 +260,8 @@ def pretty_stats(data, stat=None):
       len(data)
     ])
 
-    print('# General\n')
-    print(str(table))
+    display(HTML('<h1>General</h1>'))
+    display(HTML(table.html()))
 
   if not stat or stat is 'distribution':
     table = Table()
@@ -250,17 +274,17 @@ def pretty_stats(data, stat=None):
     table.add_column('mean', values=distribution.ix['mean'].values)
     table.add_column('max', values=distribution.ix['max'].values)
 
-    print('# Distribution\n')
-    print(str(table))
+    display(HTML('<h1>Distribution</h1>'))
+    display(HTML(table.html()))
 
   if not stat or stat is 'correlation':
     table = Table()
     correlation = data.corr()
 
     table.add_column('feature', values=list(data.columns))
-    table.add_column('highest value', values=correlation[correlation != 1.0].abs().max(skipna=True).values)
-    table.add_column('correlated with', values=correlation[correlation != 1.0].abs().idxmax(skipna=True).values)
-    table.add_column('mean', values=correlation[correlation != 1.0].abs().mean().values)
+    table.add_column('highest value', values=correlation[correlation < 1.0].abs().max(skipna=True).values)
+    table.add_column('correlated with', values=correlation[correlation < 1.0].abs().idxmax(skipna=True).values)
+    table.add_column('mean', values=correlation[correlation < 1.0].abs().mean().values)
 
-    print('# Correlation \n')
-    print(str(table))
+    display(HTML('<h1>Correlation</h1>'))
+    display(HTML(table.html()))
