@@ -13,6 +13,8 @@ from sklearn.metrics import make_scorer
 from sklearn import cross_validation as cv
 from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
 from sklearn.manifold import TSNE
+from sklearn import tree
+from sklearn.ensemble import ExtraTreesClassifier
 
 def truncate(value, max_length=100, suffix="...", pre=5):
     if len(value) > max_length:
@@ -292,3 +294,25 @@ def pretty_stats(data, stat=None):
 
     display(HTML('<h1>Correlation</h1>'))
     display(HTML(table.html()))
+
+def forest_feature_importance(X, y, criterion='entropy', n_estimators=250, random_state=0):
+  clf = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state, criterion=criterion)
+  clf = clf.fit(X, y)
+  importances = clf.feature_importances_
+  std = np.std([tree.feature_importances_ for tree in clf.estimators_], axis=0)
+  indices = np.argsort(importances)[::-1]
+
+  # Print the feature ranking
+  print("Feature ranking:")
+
+  for f in range(X.shape[1]):
+      print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
+
+  # Plot the feature importances of the forest
+  plt.figure(figsize=(15, 5), dpi=120)
+  plt.title("Feature importances")
+  plt.bar(range(X.shape[1]), importances[indices],
+         color="r", yerr=std[indices], align="center")
+  plt.xticks(range(X.shape[1]), indices)
+  plt.xlim([-1, X.shape[1]])
+  plt.show()
