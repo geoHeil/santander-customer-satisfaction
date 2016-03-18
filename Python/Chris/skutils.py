@@ -209,7 +209,7 @@ class Table(object):
     output += "</tr>"
     output += "</thead>"
 
-    output += "</body>"
+    output += "<tbody>"
     for r in range(self.size):
       output += "<tr>"
       for col in self.values:
