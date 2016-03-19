@@ -38,17 +38,23 @@ def score(*args, **kwargs):
     return func_wrapper
   return score_decorator
 
-def folds(y, n_folds=4, **kwargs):
-  return cv.KFold(n=len(y), n_folds=n_folds, shuffle=True, random_state=42, **kwargs)
+def folds(y, n_folds=4, stratified=False, random_state=42, shuffle=True, **kwargs):
+  if stratified:
+    return cv.StratifiedKFold(y, n_folds=n_folds, shuffle=shuffle, random_state=random_state, **kwargs)
+  return cv.KFold(n=len(y), n_folds=n_folds, shuffle=shuffle, random_state=random_state, **kwargs)
 
-def cross_val(estimator, X, y, n_jobs=-1, **kwargs):
+def cross_val(estimator, X, y, n_jobs=-1, n_folds=4, proba=False, **kwargs):
   # Extract values from pandas DF
-  if 'values' in X:
+  if hasattr(X, 'values'):
     X = X.values
-    if 'values' in y:
-      y = y.values
+  if hasattr(y, 'values'):
+    y = y.values
+
   # Return Cross validation score
-  return cv.cross_val_score(estimator, X, y, cv=folds(y), n_jobs=n_jobs, **kwargs)
+  if proba is True:
+    estimator.predict = lambda self, *args, **kwargs: self.predict_proba(*args, **kwargs)[:,1]
+
+  return cv.cross_val_score(estimator, X, y, cv=folds(y, n_folds=n_folds), n_jobs=n_jobs, **kwargs)
 
 
 class BaseTransform(BaseEstimator, ClassifierMixin, TransformerMixin):
@@ -61,7 +67,6 @@ class BaseTransform(BaseEstimator, ClassifierMixin, TransformerMixin):
 
   def transform(self, X):
     return X
-
 
 class PandasTransform(BaseTransform):
   def __init__(self):
@@ -93,44 +98,15 @@ class Log1pTransform(BaseTransform):
 
 
 class NanPreProcessor(TransformerMixin):
-  def __init__(self, columns=None, nan=None):
-    self.nan_options = ['median']
-    self.columns = columns
-    self.nan = nan
-    self.medians = None
-    self.y = None
-
-  def fit(self, X, y=None, **fit_params):
-    if y is None or self.nan not in self.nan_options:
-      return self
-
-    if self.columns is None:
-      self.columns = X.columns
-
-    self.y = y
-
-    self.medians = {}
-    for label in np.unique(y):
-      self.medians[label] = {}
-      x = X[y == label]
-      for col in self.columns:
-          self.medians[label][col] = x[col].median()
+  """Fills NaN with class median
+  @source: https://www.kaggle.com/cbrogan/titanic/xgboost-example-python/code
+  @based: http://stackoverflow.com/a/25562948"""
+  def fit(self, X, y=None):
+    self.fill = pd.Series([X[c].value_counts().index[0]
+      if X[c].dtype == np.dtype('O') else X[c].median() for c in X], index=X.columns)
     return self
-
-  def transform(self, X):
-    X = X.copy()
-    if self.medians is not None and len(self.y) == len(X):
-      for label, val in self.medians.items():
-        for col in self.columns:
-          X.ix[(self.y == label) & X[col].isnull(), col] = val[col]
-    else:
-      if self.columns is not None:
-        for col, nan in self.columns:
-          if col in X.columns:
-            X[col].fillna(nan, inplace=True)
-      if self.nan is not None:
-        X.fillna(self.nan, inplace=True)
-    return X
+  def transform(self, X, y=None):
+    return X.fillna(self.fill)
 
 
 def tsne_plot(X, y, title="", metric='l1', random_state=0, legend_loc='upper left', n_samples=None, n_components=2):
@@ -316,3 +292,13 @@ def forest_feature_importance(X, y, criterion='entropy', n_estimators=250, rando
   plt.xticks(range(X.shape[1]), indices)
   plt.xlim([-1, X.shape[1]])
   plt.show()
+
+def feature_hists(data, bins=20):
+  uniques = data.apply(lambda x: len(x.unique()))
+  bin_options = {col: min(bins, uniques[col]) for col in data.columns}
+
+  for col in data.columns:
+      plt.figure(figsize=(15, 5), dpi=120)
+      plt.title(col)
+      plt.title(col)
+      data[col].plot(kind='hist', alpha=0.5, bins=bin_options[col])
