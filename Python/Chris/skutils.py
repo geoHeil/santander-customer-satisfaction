@@ -16,6 +16,42 @@ from sklearn.manifold import TSNE
 from sklearn import tree
 from sklearn.ensemble import ExtraTreesClassifier
 
+
+def random_subset(X, y, dims, n_shuffle=10, seed=42):
+  """Selects a random subset of X and y according to the dimensions
+  
+  Params:
+    X: n x d pandas dataframe
+    y: n x 1 pandas dataframe 
+    dims: list of tuples
+    n_shuffle: run n_shuffle shuffle operations on the set of indices
+    seed: seed the random number generator
+  
+  Returns:
+    X', y': sampled dataframes
+
+  Example:
+    Select only 75% of the values with target 0, and all values
+    where target is 1
+    $ dims = [(0, 0.75), (1, 1.0)]
+  """
+  np.random.seed(seed)
+  idx = []
+  
+  for target, factor in dims:
+    if (0 <= factor < 1.0):
+      n_samples = int(len(y[y == target]) * factor)
+      idx_sub = np.random.choice(y.index[y == target], n_samples, replace=False)
+    else:
+      idx_sub = y.index[y == target]
+    # Stack the indices together  
+    idx = np.hstack((idx, idx_sub))
+  for i in range(n_shuffle):
+    np.random.shuffle(idx)
+
+  return X.loc[idx.astype(int)], y[idx.astype(int)]
+
+
 def truncate(value, max_length=100, suffix="...", pre=5):
     if len(value) > max_length:
       return value[0:pre] + suffix + value[pre+len(suffix)+1:max_length+1]
@@ -222,7 +258,7 @@ class Table(object):
 
     return output
 
-def pretty_stats(data, stat=None):
+def pretty_stats(data, stat=None, target_key=None):
   """Generate a pretty statistic about the dataframe *data*"""
 
   if not stat or stat is 'general':
@@ -239,6 +275,16 @@ def pretty_stats(data, stat=None):
     ])
 
     display(HTML('<h1>General</h1>'))
+    display(HTML(table.html()))
+
+  if target_key and (not stat or stat is 'target'):
+    table = Table()
+    aggregate = data.groupby([target_key]).agg({'ID':len})
+
+    table.add_column('target', values=aggregate.index.values)
+    table.add_column('count', values=aggregate.values.flatten())
+
+    display(HTML('<h1>Distribution per Target</h1>'))
     display(HTML(table.html()))
 
   if not stat or stat is 'distribution':
@@ -271,26 +317,25 @@ def pretty_stats(data, stat=None):
     display(HTML('<h1>Correlation</h1>'))
     display(HTML(table.html()))
 
-def forest_feature_importance(X, y, criterion='entropy', n_estimators=250, random_state=0):
+def feature_importance(X, y, criterion='entropy', n_estimators=250, random_state=0):
   clf = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state, criterion=criterion)
   clf = clf.fit(X, y)
   importances = clf.feature_importances_
   std = np.std([tree.feature_importances_ for tree in clf.estimators_], axis=0)
   indices = np.argsort(importances)[::-1]
 
-  # Print the feature ranking
-  print("Feature ranking:")
+  return pd.DataFrame({"column":X.columns, "importance":importances, "std": std}).set_index(indices)
 
-  for f in range(X.shape[1]):
-      print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
+def plot_feature_importance(X, y, **kwargs):
+  importances = feature_importance(X, y, **kwargs).sort(columns="importance", ascending=False)
 
   # Plot the feature importances of the forest
   plt.figure(figsize=(15, 5), dpi=120)
   plt.title("Feature importances")
-  plt.bar(range(X.shape[1]), importances[indices],
-         color="r", yerr=std[indices], align="center")
-  plt.xticks(range(X.shape[1]), indices)
-  plt.xlim([-1, X.shape[1]])
+  plt.bar(range(len(importances)), importances['importance'].values, color="r", yerr=importances['std'].values, align="center")
+  plt.xticks(range(len(importances)), importances.column.values)
+  plt.xticks(rotation=90)
+  plt.xlim([-1, len(importances)])
   plt.show()
 
 def feature_hists(data, bins=20):
