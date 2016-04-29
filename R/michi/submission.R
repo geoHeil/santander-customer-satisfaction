@@ -47,5 +47,5 @@ m2 <- gbm(TARGET ~ .,
           n.minobsinnode = 10,
           interaction.depth = 4)
 test$TARGET <- predict(m2, newdata=test, n.trees=gbm.perf(m2), type='response')
-write.csv(test[, .(ID, TARGET)], 'data/michi-submission.csv', row.names=F, quote=F)
+write.csv(test[, .(ID, TARGET)], 'michi-submission.csv', row.names=F, quote=F)
 

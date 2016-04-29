@@ -33,23 +33,26 @@ grid.large <- expand.grid(       # full 3x3x3 factorial design of hyper-paramete
   n.minobsinnode = c(5, 10, 20))
 
 # run hyper-parameter search for demo-purposes
-gbmFit1 <- caret::train(
+fit.small <- caret::train(
   TARGET ~ .,
   data = train[1:2000],  # use a small subset for demo purposes
   method = 'gbm',
   trControl = tc,
   distribution = 'bernoulli',
   verbose = T,
-  metric = 'ROC',               # use AUC for comparing models
+  metric = 'ROC',        # use AUC for comparing models
   tuneGrid = grid.small
 )
 
 trellis.par.set(caretTheme())
-plot(gbmFit1)
-print(gbmFit1$bestTune)
+plot(fit.small)
+print(fit.small$bestTune)
 
-# full hyper-parameter search (will run for hours on 32-core EC2 instance)
-gbmFit2 <- caret::train(
+test$TARGET <- predict(fit.small, newdata=test, type='prob')[, 'one']
+write.csv(test[, .(ID, TARGET)], 'michi-submission-caret-small.csv', row.names=F, quote=F)
+
+# full hyper-parameter search (will run for several hours on 32-core EC2 instance)
+fit.large <- caret::train(
   TARGET ~ .,
   data = train,  # use full training set
   method = 'gbm',
@@ -60,5 +63,8 @@ gbmFit2 <- caret::train(
   tuneGrid = grid.large
 )
 trellis.par.set(caretTheme())
-plot(gbmFit1)
-print(gbmFit1$bestTune)
+plot(fit.large)
+print(fit.large$bestTune)
+
+test$TARGET <- predict(fit.large, newdata=test, type='prob')[, 'one']
+write.csv(test[, .(ID, TARGET)], 'michi-submission-caret-large.csv', row.names=F, quote=F)
