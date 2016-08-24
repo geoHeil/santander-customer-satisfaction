@@ -145,7 +145,7 @@ class NanPreProcessor(TransformerMixin):
     return X.fillna(self.fill)
 
 
-def tsne_plot(X, y, title="", metric='l1', random_state=0, legend_loc='upper left', n_samples=None, n_components=2):
+def tsne_plot(X, y, title="", metric='l1', random_state=0, legend_loc='upper left', n_samples=None, n_components=2, _perplexity=30, _n_iter=1000):
   """Plots the first 2 components of the t-distributed Stochastic Neighbor Embedding
   References:
    * http://blog.kaggle.com/2012/11/02/t-distributed-stochastic-neighbor-embedding-wins-merck-viz-challenge/"""
@@ -161,7 +161,7 @@ def tsne_plot(X, y, title="", metric='l1', random_state=0, legend_loc='upper lef
       y = y[rnd_indices]
 
   # Create a t-SNE model
-  model = TSNE(n_components=n_components, random_state=random_state, metric=metric)
+  model = TSNE(n_components=n_components, perplexity=_perplexity, n_iter=_n_iter, random_state=random_state, metric=metric)
   X_trans = model.fit_transform(X)
 
   # Get a list of unique labels
