@@ -283,18 +283,9 @@ def pretty_stats(data, stat=None, target_key=None):
 
     table.add_column('target', values=aggregate.index.values)
     table.add_column('count', values=aggregate.values.flatten())
+    table.add_column('percentage', values=aggregate.values.flatten()/len(data))
 
     display(HTML('<h1>Distribution per Target</h1>'))
-    display(HTML(table.html()))
-
-  if target_key and (not stat or stat is 'target'):
-    table = Table()
-    aggregate = data.groupby([target_key]).agg({target_key:len})
-
-    table.add_column('target', values=aggregate.index.values)
-    table.add_column('count-percentage', values=aggregate.values.flatten()/len(data))
-
-    display(HTML('<h1>Distribution per Target in percentage</h1>'))
     display(HTML(table.html()))
 
   if not stat or stat is 'distribution':
